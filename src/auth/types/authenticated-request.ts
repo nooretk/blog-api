@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { User } from '../../users/entities/user.entity';
+import { AuthenticatedUser } from '../../admin/interfaces/authenticated-user.interface';
 
 export interface AuthenticatedRequest extends Request {
-  user: Omit<User, 'password'>;
+  user: AuthenticatedUser;
 }

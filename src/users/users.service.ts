@@ -29,9 +29,12 @@ export class UsersService {
       const userRole = await this.roleRepository.findOne({
         where: { name: 'user' },
       });
-      if (userRole) {
-        user.roles = [userRole];
+      if (!userRole) {
+        throw new NotFoundException(
+          "Default 'user' role not found. Please check system configuration.",
+        );
       }
+      user.roles = [userRole];
       return await this.userRepository.save(user);
     } catch (error) {
       handleDatabaseError(error, 'create user');
