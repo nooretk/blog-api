@@ -22,7 +22,23 @@ export class AdminService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async assignRole(userId: number, roleName: string) {
+  private handleError(error: unknown, operation: string): never {
+    if (error instanceof Error) {
+      this.logger.error(`${operation} failed`, error.stack);
+    } else {
+      this.logger.error(`${operation} failed`, String(error));
+    }
+
+    if (
+      error instanceof NotFoundException ||
+      error instanceof BadRequestException
+    ) {
+      throw error;
+    }
+    throw new InternalServerErrorException(`Failed to ${operation}`);
+  }
+
+  async assignRole(userId: number, roleName: string): Promise<User> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -64,18 +80,7 @@ export class AdminService {
       return savedUser;
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Failed to assign role '${roleName}' to user ${userId}`,
-        error.stack,
-      );
-
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new InternalServerErrorException('Failed to assign role');
+      this.handleError(error, `assign role '${roleName}' to user ${userId}`);
     } finally {
       await queryRunner.release();
     }
@@ -104,14 +109,16 @@ export class AdminService {
         throw new NotFoundException(`Role '${roleName}' not found`);
       }
 
-      const initialRoleCount = user.roles.length;
-      user.roles = user.roles.filter((r) => r.name !== roleName);
-
-      if (user.roles.length === initialRoleCount) {
+      // Check if user has the role before attempting removal
+      const hasRole = user.roles.some((role) => role.name === roleName);
+      if (!hasRole) {
         throw new BadRequestException(
           `User does not have the '${roleName}' role`,
         );
       }
+
+      // Remove the role
+      user.roles = user.roles.filter((r) => r.name !== roleName);
 
       const savedUser = await queryRunner.manager.save(User, user);
 
@@ -121,18 +128,7 @@ export class AdminService {
       return savedUser;
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Failed to revoke role '${roleName}' from user ${userId}`,
-        error.stack,
-      );
-
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new InternalServerErrorException('Failed to revoke role');
+      this.handleError(error, `revoke role '${roleName}' from user ${userId}`);
     } finally {
       await queryRunner.release();
     }
