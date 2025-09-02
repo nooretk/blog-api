@@ -117,6 +117,9 @@ export class AuthController {
     return this.authService.signIn(signInDto);
   }
 
+  @ApiOperation({
+    summary: 'Get current user profile with roles and permissions',
+  })
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile (For testing)' })
   @ApiResponse({
@@ -129,6 +132,21 @@ export class AuthController {
         email: 'john@example.com',
         bio: 'A short bio',
         createdAt: '2025-01-01T00:00:00.000Z',
+        roles: [
+          {
+            id: 1,
+            name: 'user',
+            description: 'Normal user',
+            permissions: [
+              { id: 1, name: 'create_post', description: 'Can create posts' },
+              {
+                id: 2,
+                name: 'edit_post_own',
+                description: 'Can edit own posts',
+              },
+            ],
+          },
+        ],
       },
     },
   })
