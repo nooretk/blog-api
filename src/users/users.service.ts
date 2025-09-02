@@ -29,9 +29,12 @@ export class UsersService {
       const userRole = await this.roleRepository.findOne({
         where: { name: 'user' },
       });
-      if (userRole) {
-        user.roles = [userRole];
+      if (!userRole) {
+        throw new NotFoundException(
+          "Default 'user' role not found. Please check system configuration.",
+        );
       }
+      user.roles = [userRole];
       const savedUser = await this.userRepository.save(user);
       delete (savedUser as Partial<User>).password; // it's uncesseary since we already use @Exclude, but for extra security and avoid exposing mistakes or logging
       return savedUser;

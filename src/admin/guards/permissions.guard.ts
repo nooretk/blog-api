@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRE_PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
+import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
+
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -24,7 +29,7 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const { user } = request;
 
     if (!user) {
@@ -37,8 +42,8 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('No user roles assigned');
     }
 
-    const userPermissions = user.roles.flatMap(
-      (role: any) => role.permissions?.map((p: any) => p.name) || [],
+    const userPermissions: string[] = user.roles.flatMap(
+      (role) => role.permissions?.map((permission) => permission.name) || [],
     );
 
     const hasPermission = requiredPermissions.some((permission) =>
