@@ -30,6 +30,7 @@ async function bootstrap() {
     PERMISSIONS.CREATE_COMMENT,
     PERMISSIONS.EDIT_COMMENT_OWN,
     PERMISSIONS.DELETE_COMMENT_OWN,
+    PERMISSIONS.UPDATE_PROFILE_OWN,
   ];
 
   const adminPermissionNames = [
@@ -38,6 +39,9 @@ async function bootstrap() {
     PERMISSIONS.CREATE_COMMENT,
     PERMISSIONS.DELETE_COMMENT_ANY,
     PERMISSIONS.ASSIGN_ROLE,
+    PERMISSIONS.UPDATE_PROFILE_OWN,
+    PERMISSIONS.EDIT_POST_OWN,
+    PERMISSIONS.EDIT_COMMENT_OWN,
   ];
 
   const app = await NestFactory.createApplicationContext(AppModule);
