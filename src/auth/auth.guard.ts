@@ -32,7 +32,7 @@ export class AuthGuard implements CanActivate {
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // Remove password, but keep roles and permissions for RBAC
       const { password, ...sanitizedUser } = user;
       request.user = sanitizedUser;
     } catch {

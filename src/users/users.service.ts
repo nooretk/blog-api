@@ -5,12 +5,15 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 import * as bcrypt from 'bcrypt';
+import { Role } from '../roles/entities/role.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
   ) {}
 
   async createUser(data: RegisterDto): Promise<User> {
@@ -22,6 +25,13 @@ export class UsersService {
       bio: data.bio,
     });
     try {
+      // Assign the 'user' role by default
+      const userRole = await this.roleRepository.findOne({
+        where: { name: 'user' },
+      });
+      if (userRole) {
+        user.roles = [userRole];
+      }
       return await this.userRepository.save(user);
     } catch (error) {
       handleDatabaseError(error, 'create user');
@@ -39,7 +49,10 @@ export class UsersService {
 
   async findOneById(id: number): Promise<User> {
     try {
-      const user = await this.userRepository.findOne({ where: { id } });
+      const user = await this.userRepository.findOne({
+        where: { id },
+        relations: ['roles', 'roles.permissions'],
+      });
       if (!user) {
         throw new NotFoundException('User not found');
       }
