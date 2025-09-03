@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
@@ -55,6 +56,13 @@ export class User {
   })
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @ApiProperty({
+    example: '2025-09-01T12:34:56.789Z',
+    description: 'User account last update timestamp',
+  })
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   @ApiProperty({
     example: [
