@@ -117,7 +117,7 @@ export class UsersController {
       example: {
         statusCode: 400,
         message: [
-          'Password must be at least 8 characters long',
+          'Password must be at least 6 characters long',
           'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
         ],
         error: 'Bad Request',
