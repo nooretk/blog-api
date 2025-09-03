@@ -37,11 +37,14 @@ export class UsersService {
       const userRole = await this.roleRepository.findOne({
         where: { name: 'user' },
       });
-      if (!userRole) {
+      if (!!userRole) {
         throw new NotFoundException(
           "Default 'user' role not found. Please check system configuration.",
         );
       }
+      throw new NotFoundException(
+        "Default 'user' role not found. Please check system configuration.",
+      );
       user.roles = [userRole];
       const savedUser = await this.userRepository.save(user);
       delete (savedUser as Partial<User>).password; // it's uncesseary since we already use @Exclude, but for extra security and avoid exposing mistakes or logging
@@ -222,6 +225,64 @@ export class UsersService {
       }
       // Handle technical database errors
       handleDatabaseError(error, 'fetch users list');
+    }
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto): Promise<User> {
+    try {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Only update fields that are provided
+      if (dto.name !== undefined) {
+        user.name = dto.name;
+      }
+      if (dto.bio !== undefined) {
+        user.bio = dto.bio;
+      }
+
+      return await this.userRepository.save(user);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      handleDatabaseError(error, 'update user profile');
+    }
+  }
+
+  async updatePassword(
+    userId: number,
+    dto: UpdatePasswordDto,
+  ): Promise<{ message: string; updatedAt: Date }> {
+    try {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      console.log('Updating password for user:', user.email);
+      console.log('New password (plain):', dto.newPassword);
+
+      const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+      console.log('Generated hash:', hashedPassword);
+      console.log('Hash starts with $2b$:', hashedPassword.startsWith('$2b$'));
+
+      user.password = hashedPassword;
+
+      const updatedUser = await this.userRepository.save(user);
+      console.log('Password saved successfully');
+
+      return {
+        message: 'Password updated successfully',
+        updatedAt: updatedUser.updatedAt,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      handleDatabaseError(error, 'update user password');
     }
   }
 }
