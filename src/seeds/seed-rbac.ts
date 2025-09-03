@@ -42,6 +42,7 @@ async function bootstrap() {
     PERMISSIONS.UPDATE_PROFILE_OWN,
     PERMISSIONS.EDIT_POST_OWN,
     PERMISSIONS.EDIT_COMMENT_OWN,
+    PERMISSIONS.VIEW_USERS,
   ];
 
   const app = await NestFactory.createApplicationContext(AppModule);

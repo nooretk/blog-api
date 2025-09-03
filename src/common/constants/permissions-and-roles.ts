@@ -9,6 +9,7 @@ export const PERMISSIONS = {
   DELETE_COMMENT_ANY: 'delete_comment_any',
   ASSIGN_ROLE: 'assign_role',
   UPDATE_PROFILE_OWN: 'update_profile_own',
+  VIEW_USERS: 'view_users',
 };
 
 export const ROLES = {
