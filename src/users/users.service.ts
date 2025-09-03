@@ -281,4 +281,77 @@ export class UsersService {
       handleDatabaseError(error, 'update user password');
     }
   }
+
+  async findAllUsers(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedUsersResponseDto> {
+    try {
+      const { page = 1, limit = 10 } = paginationDto;
+      const offset = (page - 1) * limit;
+
+      const [users, total] = await this.userRepository.findAndCount({
+        relations: ['roles'],
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          bio: true,
+          createdAt: true,
+          updatedAt: true,
+          roles: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        order: {
+          createdAt: 'DESC',
+        },
+        skip: offset,
+        take: limit,
+      });
+
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      // Validate that the requested page is within bounds
+      if (total > 0 && page > totalPages) {
+        throw new NotFoundException(
+          `Page ${page} not found. Total pages available: ${totalPages}`,
+        );
+      }
+
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      return {
+        users: users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          bio: user.bio,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          roles: user.roles.map((role) => ({
+            id: role.id,
+            name: role.name,
+            description: role.description,
+          })),
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle technical database errors
+      handleDatabaseError(error, 'fetch users list');
+    }
+  }
 }
