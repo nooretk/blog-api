@@ -263,12 +263,7 @@ export class UsersService {
         throw new NotFoundException('User not found');
       }
 
-      console.log('Updating password for user:', user.email);
-      console.log('New password (plain):', dto.newPassword);
-
       const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
-      console.log('Generated hash:', hashedPassword);
-      console.log('Hash starts with $2b$:', hashedPassword.startsWith('$2b$'));
 
       user.password = hashedPassword;
 
