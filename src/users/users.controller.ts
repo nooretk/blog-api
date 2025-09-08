@@ -25,9 +25,10 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { PasswordUpdateResponseDto } from './dto/password-update-response.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { PermissionsGuard } from '../admin/guards/permissions.guard';
-import { RequirePermissions } from '../admin/decorators/require-permissions.decorator';
+
 import { PERMISSIONS } from '../common/constants/permissions-and-roles';
+import { PermissionsGuard } from 'src/rbac/guards/permissions.guard';
+import { RequirePermissions } from 'src/rbac/decorators/require-permissions.decorator';
 
 @ApiTags('User Profile Management')
 @ApiSecurity('JWT-auth')

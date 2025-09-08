@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -105,24 +109,40 @@ export class UsersService {
     dto: UpdatePasswordDto,
   ): Promise<{ message: string; updatedAt: Date }> {
     try {
-      const user = await this.userRepository.findOne({ where: { id: userId } });
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'password', 'updatedAt'],
+      });
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+      // Prevent updating to the same password
+      const isSamePassword = await bcrypt.compare(
+        dto.newPassword,
+        user.password,
+      );
+      if (isSamePassword) {
+        throw new BadRequestException(
+          'New password must be different from the current password',
+        );
+      }
 
+      const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
       user.password = hashedPassword;
 
       const updatedUser = await this.userRepository.save(user);
-      console.log('Password saved successfully');
+      delete (updatedUser as Partial<User>).password; // it's uncesseary since we already use @Exclude, but for extra security and avoid exposing mistakes or logging
 
       return {
         message: 'Password updated successfully',
         updatedAt: updatedUser.updatedAt,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       handleDatabaseError(error, 'update user password');
