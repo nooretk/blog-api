@@ -24,8 +24,8 @@ import { PostResponseDto } from './dto/post-response.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { PERMISSIONS } from '../common/constants/permissions-and-roles';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request';
-import { PermissionsGuard } from 'src/rbac/guards/permissions.guard';
-import { RequirePermissions } from 'src/rbac/decorators/require-permissions.decorator';
+import { PermissionsGuard } from '../rbac/guards/permissions.guard';
+import { RequirePermissions } from '../rbac/decorators/require-permissions.decorator';
 
 @ApiTags('Posts Management')
 @ApiSecurity('JWT-auth')
