@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../roles/entities/role.entity';
 
@@ -71,6 +77,75 @@ export class UsersService {
     } catch (error) {
       handleDatabaseError(error, 'fetch user for authentication');
       return null;
+    }
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto): Promise<User> {
+    try {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Only update fields that are provided
+      if (dto.name !== undefined) {
+        user.name = dto.name;
+      }
+      if (dto.bio !== undefined) {
+        user.bio = dto.bio;
+      }
+
+      return await this.userRepository.save(user);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      handleDatabaseError(error, 'update user profile');
+    }
+  }
+
+  async updatePassword(
+    userId: number,
+    dto: UpdatePasswordDto,
+  ): Promise<{ message: string; updatedAt: Date }> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'password', 'updatedAt'],
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Prevent updating to the same password
+      const isSamePassword = await bcrypt.compare(
+        dto.newPassword,
+        user.password,
+      );
+      if (isSamePassword) {
+        throw new BadRequestException(
+          'New password must be different from the current password',
+        );
+      }
+
+      const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+      user.password = hashedPassword;
+
+      const updatedUser = await this.userRepository.save(user);
+      delete (updatedUser as Partial<User>).password; // it's uncesseary since we already use @Exclude, but for extra security and avoid exposing mistakes or logging
+
+      return {
+        message: 'Password updated successfully',
+        updatedAt: updatedUser.updatedAt,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      handleDatabaseError(error, 'update user password');
     }
   }
 }

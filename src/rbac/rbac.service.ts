@@ -11,8 +11,8 @@ import { User } from '../users/entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
 
 @Injectable()
-export class AdminService {
-  private readonly logger = new Logger(AdminService.name);
+export class RbacService {
+  private readonly logger = new Logger(RbacService.name);
 
   constructor(
     @InjectRepository(User)

@@ -18,7 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "m:g": "node --require ts-node/register ./node_modules/typeorm/cli.js migration:generate src/migrations/Init -d \"src/data-source.ts\"",
+    "m:g": "node --require ts-node/register ./node_modules/typeorm/cli.js migration:generate -d \"src/data-source.ts\"",
     "m:c": "node --require ts-node/register ./node_modules/typeorm/cli.js migration:create",
     "m:run": "node --require ts-node/register ./node_modules/typeorm/cli.js migration:run -d \"src/data-source.ts\"",
     "m:revert": "node --require ts-node/register ./node_modules/typeorm/cli.js migration:revert -d \"src/data-source.ts\""

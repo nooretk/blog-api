@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
-import { AdminModule } from './rbac/rbac.module';
+import { RbacModule } from './rbac/rbac.module';
 
 @Module({
   controllers: [AppController],
@@ -29,7 +29,7 @@ import { AdminModule } from './rbac/rbac.module';
     }),
 
     AuthModule,
-    AdminModule,
+    RbacModule,
   ],
 })
 export class AppModule {}
