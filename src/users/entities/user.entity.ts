@@ -8,8 +8,10 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 
-import { ManyToMany, JoinTable } from 'typeorm';
+import { ManyToMany, JoinTable, OneToMany } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
+
+import { Post } from '../../posts/entities/post.entity';
 
 @Entity('users')
 export class User {
@@ -75,4 +77,7 @@ export class User {
   @ManyToMany(() => Role, { cascade: true })
   @JoinTable({ name: 'user_roles' })
   roles: Role[];
+
+  @OneToMany(() => Post, (post) => post.author)
+  posts: Post[];
 }
