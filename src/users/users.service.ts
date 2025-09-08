@@ -1,16 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 import * as bcrypt from 'bcrypt';
+import { Role } from '../roles/entities/role.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
   ) {}
 
   async createUser(data: RegisterDto): Promise<User> {
@@ -22,6 +25,16 @@ export class UsersService {
       bio: data.bio,
     });
     try {
+      // Assign the 'user' role by default
+      const userRole = await this.roleRepository.findOne({
+        where: { name: 'user' },
+      });
+      if (!userRole) {
+        throw new NotFoundException(
+          "Default 'user' role not found. Please check system configuration.",
+        );
+      }
+      user.roles = [userRole];
       const savedUser = await this.userRepository.save(user);
       delete (savedUser as Partial<User>).password; // it's uncesseary since we already use @Exclude, but for extra security and avoid exposing mistakes or logging
       return savedUser;
@@ -52,6 +65,7 @@ export class UsersService {
       const user = await this.userRepository.findOne({
         where: { id },
         select: ['id', 'email', 'name', 'bio', 'createdAt'], // Only auth-required fields
+        relations: ['roles', 'roles.permissions'],
       });
       return user;
     } catch (error) {
