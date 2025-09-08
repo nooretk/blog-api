@@ -13,7 +13,7 @@ import { UsersModule } from 'src/users/users.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET_KEY'),
-        signOptions: { expiresIn: '1h' }, // when implementig refresh token this will be reduced
+        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN') },
       }),
     }),
   ],
