@@ -39,96 +39,63 @@ export class AdminService {
   }
 
   async assignRole(userId: number, roleName: string): Promise<User> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      // 1. Validate user exists
-      const user = await queryRunner.manager.findOne(User, {
-        where: { id: userId },
-        relations: ['roles'],
-      });
-
-      if (!user) {
-        throw new NotFoundException(`User with ID ${userId} not found`);
-      }
-
-      // 2. Validate role exists
-      const role = await queryRunner.manager.findOne(Role, {
-        where: { name: roleName },
-      });
-
-      if (!role) {
-        throw new NotFoundException(`Role '${roleName}' not found`);
-      }
-
-      // 3. Check if user already has role
-      if (user.roles.some((r) => r.name === roleName)) {
-        throw new BadRequestException(
-          `User already has the '${roleName}' role`,
-        );
-      }
-
-      // 4. Assign role
-      user.roles.push(role);
-      const savedUser = await queryRunner.manager.save(User, user);
-
-      await queryRunner.commitTransaction();
-
-      this.logger.log(`Role '${roleName}' assigned to user ${userId}`);
-      return savedUser;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.handleError(error, `assign role '${roleName}' to user ${userId}`);
-    } finally {
-      await queryRunner.release();
-    }
+    return this.modifyUserRole(userId, roleName, 'assign');
   }
 
-  async revokeRole(userId: number, roleName: string) {
+  async revokeRole(userId: number, roleName: string): Promise<User> {
+    return this.modifyUserRole(userId, roleName, 'revoke');
+  }
+
+  private async modifyUserRole(
+    userId: number,
+    roleName: string,
+    action: 'assign' | 'revoke',
+  ): Promise<User> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
     try {
       const user = await queryRunner.manager.findOne(User, {
         where: { id: userId },
         relations: ['roles'],
       });
-
       if (!user) {
         throw new NotFoundException(`User with ID ${userId} not found`);
       }
-
       const role = await queryRunner.manager.findOne(Role, {
         where: { name: roleName },
       });
-
       if (!role) {
         throw new NotFoundException(`Role '${roleName}' not found`);
       }
-
-      // Check if user has the role before attempting removal
-      const hasRole = user.roles.some((role) => role.name === roleName);
-      if (!hasRole) {
-        throw new BadRequestException(
-          `User does not have the '${roleName}' role`,
-        );
+      const hasRole = user.roles.some((r) => r.name === roleName);
+      if (action === 'assign') {
+        if (hasRole) {
+          throw new BadRequestException(
+            `User already has the '${roleName}' role`,
+          );
+        }
+        user.roles.push(role);
+      } else if (action === 'revoke') {
+        if (!hasRole) {
+          throw new BadRequestException(
+            `User does not have the '${roleName}' role`,
+          );
+        }
+        user.roles = user.roles.filter((r) => r.name !== roleName);
       }
-
-      // Remove the role
-      user.roles = user.roles.filter((r) => r.name !== roleName);
-
       const savedUser = await queryRunner.manager.save(User, user);
-
       await queryRunner.commitTransaction();
-
-      this.logger.log(`Role '${roleName}' revoked from user ${userId}`);
+      this.logger.log(
+        `Role '${roleName}' ${action === 'assign' ? 'assigned to' : 'revoked from'} user ${userId}`,
+      );
       return savedUser;
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.handleError(error, `revoke role '${roleName}' from user ${userId}`);
+      this.handleError(
+        error,
+        `${action} role '${roleName}' ${action === 'assign' ? 'to' : 'from'} user ${userId}`,
+      );
     } finally {
       await queryRunner.release();
     }

@@ -6,7 +6,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { AdminService } from './admin.service';
+import { AdminService } from './rbac.service';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { RequirePermissions } from './decorators/require-permissions.decorator';
 import { PermissionsGuard } from './guards/permissions.guard';

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
