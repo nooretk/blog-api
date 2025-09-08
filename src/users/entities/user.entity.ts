@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 @Entity('users')
 export class User {
@@ -33,7 +34,8 @@ export class User {
     example: '$2b$10$hashedpassword...',
     description: 'Hashed user password (bcrypt)',
   })
-  @Column()
+  @Exclude() // This ensures password is never serialized in responses
+  @Column({ select: false }) // Password is excluded from queries by default
   password: string;
 
   @ApiProperty({

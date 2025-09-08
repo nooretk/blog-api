@@ -18,14 +18,17 @@ import {
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import type { AuthenticatedRequest } from './types/authenticated-request';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request';
 import { SignInDto } from './dto/signin.dto';
+import { plainToInstance } from 'class-transformer';
+import { User } from 'src/users/entities/user.entity';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({
     status: 201,
@@ -71,17 +74,15 @@ export class AuthController {
     },
   })
   @ApiBody({ type: RegisterDto })
-  @Post('register')
   async register(@Body() registerDto: RegisterDto) {
     const user = await this.authService.register(registerDto);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
     return {
       message: 'User registered successfully',
-      user: userWithoutPassword,
+      user: plainToInstance(User, user),
     };
   }
 
+  @Post('login')
   @ApiOperation({ summary: 'Sign in user' })
   @ApiResponse({
     status: 200,
@@ -112,12 +113,12 @@ export class AuthController {
   })
   @ApiBody({ type: SignInDto })
   @HttpCode(HttpStatus.OK)
-  @Post('login')
   signIn(@Body() signInDto: SignInDto) {
     return this.authService.signIn(signInDto);
   }
 
-  @ApiOperation({ summary: 'Get current user profile' })
+  @Get('profile')
+  @ApiOperation({ summary: 'Get current user profile (For testing)' })
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved successfully',
@@ -137,7 +138,6 @@ export class AuthController {
   })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard)
-  @Get('profile')
   getProfile(@Request() req: AuthenticatedRequest) {
     return req.user;
   }

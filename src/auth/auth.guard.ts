@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import type { AuthenticatedRequest } from './types/authenticated-request';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request';
 import type { JwtPayload } from './types/jwt-payload';
 
 @Injectable()
@@ -21,6 +21,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractTokenFromHeader(request);
+
     if (!token) {
       throw new UnauthorizedException();
     }
@@ -32,10 +33,12 @@ export class AuthGuard implements CanActivate {
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...sanitizedUser } = user;
-      request.user = sanitizedUser;
-    } catch {
+      request.user = user;
+    } catch (error) {
+      // Re-throw UnauthorizedException, catch other errors as unauthorized
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException();
     }
     return true;

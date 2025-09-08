@@ -18,7 +18,7 @@ export class AuthService {
   }
 
   async signIn(signInDto: SignInDto): Promise<{ access_token: string }> {
-    const user = await this.usersService.findByEmail(signInDto.email);
+    const user = await this.usersService.findByEmailForAuth(signInDto.email);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }

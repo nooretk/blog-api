@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,30 +22,41 @@ export class UsersService {
       bio: data.bio,
     });
     try {
-      return await this.userRepository.save(user);
+      const savedUser = await this.userRepository.save(user);
+      delete (savedUser as Partial<User>).password; // it's uncesseary since we already use @Exclude, but for extra security and avoid exposing mistakes or logging
+      return savedUser;
     } catch (error) {
       handleDatabaseError(error, 'create user');
     }
   }
 
-  async findByEmail(email: string): Promise<User | undefined> {
+  async findByEmailForAuth(email: string): Promise<User | undefined> {
     try {
-      const user = await this.userRepository.findOne({ where: { email } });
+      // Specifically for authentication - includes password
+      const user = await this.userRepository.findOne({
+        where: { email },
+        select: ['id', 'email', 'name', 'bio', 'createdAt', 'password'], // Explicitly include password
+      });
       return user ?? undefined;
     } catch (error) {
-      handleDatabaseError(error, 'fetch user by email');
+      handleDatabaseError(error, 'fetch user by email for authentication');
     }
   }
 
-  async findOneById(id: number): Promise<User> {
+  /**
+   * Find user by ID specifically for authentication in AuthGuard
+   * Returns only fields needed for creating SafeUser object
+   */
+  async findOneById(id: number): Promise<User | null> {
     try {
-      const user = await this.userRepository.findOne({ where: { id } });
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+      const user = await this.userRepository.findOne({
+        where: { id },
+        select: ['id', 'email', 'name', 'bio', 'createdAt'], // Only auth-required fields
+      });
       return user;
     } catch (error) {
-      handleDatabaseError(error, 'fetch user by id');
+      handleDatabaseError(error, 'fetch user for authentication');
+      return null;
     }
   }
 }
