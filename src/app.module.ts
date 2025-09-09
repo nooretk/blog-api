@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { RbacModule } from './rbac/rbac.module';
+import { PostsModule } from './posts/posts.module';
 
 @Module({
   controllers: [AppController],
@@ -30,6 +31,7 @@ import { RbacModule } from './rbac/rbac.module';
 
     AuthModule,
     RbacModule,
+    PostsModule,
   ],
 })
 export class AppModule {}
