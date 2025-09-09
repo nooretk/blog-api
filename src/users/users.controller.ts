@@ -6,6 +6,8 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Get,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +19,7 @@ import {
   ApiNotFoundResponse,
   ApiBadRequestResponse,
   ApiSecurity,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request';
@@ -24,21 +27,103 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { PasswordUpdateResponseDto } from './dto/password-update-response.dto';
+import { ListUsersDto } from './dto/list-users.dto';
+
 import { AuthGuard } from '../auth/auth.guard';
 
 import { PERMISSIONS } from '../common/constants/permissions-and-roles';
 import { PermissionsGuard } from 'src/rbac/guards/permissions.guard';
 import { RequirePermissions } from 'src/rbac/decorators/require-permissions.decorator';
+import { PaginatedUsersResponseDto } from './dto/user-list-response.dto';
 
-@ApiTags('User Profile Management')
+@ApiTags('User Management')
 @ApiSecurity('JWT-auth')
 @ApiBearerAuth('JWT-auth')
-@Controller('users/me')
+@Controller('users')
 @UseGuards(AuthGuard, PermissionsGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Patch('profile')
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(PERMISSIONS.VIEW_USERS)
+  @ApiOperation({
+    summary: 'List all users with pagination and search',
+    description:
+      'Retrieve a paginated list of all users in the system with optional search functionality (admin only)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (starts from 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of users per page (max 100)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term to filter users by name or email',
+    example: 'john',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Users retrieved successfully',
+    type: PaginatedUsersResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Unauthorized',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'Insufficient permissions (admin role required)',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Forbidden resource',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Requested page not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'Page 2 not found. Total pages available: 1',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid pagination parameters',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: [
+          'page must not be less than 1',
+          'limit must not be greater than 100',
+        ],
+      },
+    },
+  })
+  async listUsers(
+    @Query() listUsersDto: ListUsersDto,
+  ): Promise<PaginatedUsersResponseDto> {
+    return this.usersService.findAllUsers(listUsersDto);
+  }
+
+  @Patch('me/profile')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(PERMISSIONS.UPDATE_PROFILE_OWN)
   @ApiOperation({
@@ -99,7 +184,7 @@ export class UsersController {
     return this.usersService.updateProfile(req.user.id, dto);
   }
 
-  @Patch('password')
+  @Patch('me/password')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(PERMISSIONS.UPDATE_PROFILE_OWN)
   @ApiOperation({
@@ -119,7 +204,7 @@ export class UsersController {
         statusCode: 400,
         message: [
           'Password must be at least 6 characters long',
-          'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+          'Password must not exceed 64 characters',
         ],
         error: 'Bad Request',
       },

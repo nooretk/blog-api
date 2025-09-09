@@ -12,6 +12,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../roles/entities/role.entity';
+import { ListUsersDto } from './dto/list-users.dto';
+import { PaginatedUsersResponseDto } from './dto/user-list-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -129,6 +131,7 @@ export class UsersService {
       }
 
       const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
       user.password = hashedPassword;
 
       const updatedUser = await this.userRepository.save(user);
@@ -146,6 +149,83 @@ export class UsersService {
         throw error;
       }
       handleDatabaseError(error, 'update user password');
+    }
+  }
+
+  async findAllUsers(
+    listUsersDto: ListUsersDto,
+  ): Promise<PaginatedUsersResponseDto> {
+    try {
+      const { page = 1, limit = 10, search } = listUsersDto;
+      const offset = (page - 1) * limit;
+
+      const queryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.roles', 'roles')
+        .select([
+          'user.id',
+          'user.name',
+          'user.email',
+          'user.bio',
+          'user.createdAt',
+          'user.updatedAt',
+          'roles.id',
+          'roles.name',
+          'roles.description',
+        ]);
+
+      if (search) {
+        queryBuilder.where(
+          '(user.name ILIKE :search OR user.email ILIKE :search)',
+          { search: `%${search}%` },
+        );
+      }
+
+      queryBuilder.orderBy('user.createdAt', 'DESC').skip(offset).take(limit);
+
+      const [users, total] = await queryBuilder.getManyAndCount();
+
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      // Validate that the requested page is within bounds
+      if (total > 0 && page > totalPages) {
+        throw new NotFoundException(
+          `Page ${page} not found. Total pages available: ${totalPages}`,
+        );
+      }
+
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      return {
+        users: users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          bio: user.bio,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          roles: user.roles.map((role) => ({
+            id: role.id,
+            name: role.name,
+            description: role.description,
+          })),
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle technical database errors
+      handleDatabaseError(error, 'fetch users list');
     }
   }
 }
