@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Post } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -38,6 +38,51 @@ export class PostsService {
     dto: ListPostsDto,
     userId?: number,
   ): Promise<ListPostsResponseDto> {
+    return this.getPostsWithFilters(
+      dto,
+      (queryBuilder) => {
+        // Show public posts + user's own private posts
+        queryBuilder.where(
+          '(post.visibility = :publicVisibility OR (post.visibility = :privateVisibility AND post.author.id = :userId))',
+          {
+            publicVisibility: PostVisibility.PUBLIC,
+            privateVisibility: PostVisibility.PRIVATE,
+            userId,
+          },
+        );
+      },
+      'list posts',
+    );
+  }
+
+  async listUserPosts(
+    dto: ListPostsDto,
+    targetUserId: number,
+    requestingUserId?: number,
+  ): Promise<ListPostsResponseDto> {
+    return this.getPostsWithFilters(
+      dto,
+      (queryBuilder) => {
+        // Show posts authored by the target user
+        queryBuilder.where('post.author.id = :targetUserId', { targetUserId });
+
+        // If requesting user is different from target user, only show public posts
+        // If requesting user is the same as target user, show all posts (public + private)
+        if (requestingUserId !== targetUserId) {
+          queryBuilder.andWhere('post.visibility = :publicVisibility', {
+            publicVisibility: PostVisibility.PUBLIC,
+          });
+        }
+      },
+      'list user posts',
+    );
+  }
+
+  private async getPostsWithFilters(
+    dto: ListPostsDto,
+    whereClause: (queryBuilder: SelectQueryBuilder<Post>) => void,
+    operation: string,
+  ): Promise<ListPostsResponseDto> {
     try {
       const { page = 1, limit = 10, search } = dto;
       const skip = (page - 1) * limit;
@@ -46,17 +91,10 @@ export class PostsService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author');
 
-      // show public posts + user's own private posts
+      // Apply the specific where clause
+      whereClause(queryBuilder);
 
-      queryBuilder.where(
-        '(post.visibility = :publicVisibility OR (post.visibility = :privateVisibility AND post.author.id = :userId))',
-        {
-          publicVisibility: PostVisibility.PUBLIC,
-          privateVisibility: PostVisibility.PRIVATE,
-          userId,
-        },
-      );
-
+      // Apply search filter if provided
       if (search) {
         queryBuilder.andWhere(
           '(post.title ILIKE :search OR post.content ILIKE :search)',
@@ -104,7 +142,7 @@ export class PostsService {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      handleDatabaseError(error, 'list posts');
+      handleDatabaseError(error, operation);
     }
   }
 
