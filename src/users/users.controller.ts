@@ -27,7 +27,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { PasswordUpdateResponseDto } from './dto/password-update-response.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { ListUsersDto } from './dto/list-users.dto';
 
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -48,9 +48,9 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(PERMISSIONS.VIEW_USERS)
   @ApiOperation({
-    summary: 'List all users with pagination',
+    summary: 'List all users with pagination and search',
     description:
-      'Retrieve a paginated list of all users in the system (admin only)',
+      'Retrieve a paginated list of all users in the system with optional search functionality (admin only)',
   })
   @ApiQuery({
     name: 'page',
@@ -65,6 +65,13 @@ export class UsersController {
     type: Number,
     description: 'Number of users per page (max 100)',
     example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term to filter users by name or email',
+    example: 'john',
   })
   @ApiResponse({
     status: 200,
@@ -111,9 +118,9 @@ export class UsersController {
     },
   })
   async listUsers(
-    @Query() paginationDto: PaginationDto,
+    @Query() listUsersDto: ListUsersDto,
   ): Promise<PaginatedUsersResponseDto> {
-    return this.usersService.findAllUsers(paginationDto);
+    return this.usersService.findAllUsers(listUsersDto);
   }
 
   @Patch('me/profile')

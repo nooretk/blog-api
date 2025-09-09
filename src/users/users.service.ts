@@ -12,7 +12,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../roles/entities/role.entity';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ListUsersDto } from './dto/list-users.dto';
 import { PaginatedUsersResponseDto } from './dto/user-list-response.dto';
 
 @Injectable()
@@ -153,33 +153,37 @@ export class UsersService {
   }
 
   async findAllUsers(
-    paginationDto: PaginationDto,
+    listUsersDto: ListUsersDto,
   ): Promise<PaginatedUsersResponseDto> {
     try {
-      const { page = 1, limit = 10 } = paginationDto;
+      const { page = 1, limit = 10, search } = listUsersDto;
       const offset = (page - 1) * limit;
 
-      const [users, total] = await this.userRepository.findAndCount({
-        relations: ['roles'],
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          bio: true,
-          createdAt: true,
-          updatedAt: true,
-          roles: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        order: {
-          createdAt: 'DESC',
-        },
-        skip: offset,
-        take: limit,
-      });
+      const queryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.roles', 'roles')
+        .select([
+          'user.id',
+          'user.name',
+          'user.email',
+          'user.bio',
+          'user.createdAt',
+          'user.updatedAt',
+          'roles.id',
+          'roles.name',
+          'roles.description',
+        ]);
+
+      if (search) {
+        queryBuilder.where(
+          '(user.name ILIKE :search OR user.email ILIKE :search)',
+          { search: `%${search}%` },
+        );
+      }
+
+      queryBuilder.orderBy('user.createdAt', 'DESC').skip(offset).take(limit);
+
+      const [users, total] = await queryBuilder.getManyAndCount();
 
       const totalPages = Math.ceil(total / limit) || 1;
 
