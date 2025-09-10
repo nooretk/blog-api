@@ -296,7 +296,7 @@ export class PostsController {
     @Param('id', ParseIntPipe) id: number,
     @Request() req: AuthenticatedRequest,
   ): Promise<void> {
-    return this.postsService.deletePost(id, req.user.id, req.user);
+    return this.postsService.deletePost(id, req.user);
   }
 
   @Post()

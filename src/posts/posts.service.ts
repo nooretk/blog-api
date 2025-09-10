@@ -85,7 +85,7 @@ export class PostsService {
     }
   }
 
-  async deletePost(postId: number, userId: number, user: User): Promise<void> {
+  async deletePost(postId: number, user: User): Promise<void> {
     try {
       // First, find the post and verify it exists
       const post = await this.postsRepository.findOne({
@@ -106,7 +106,7 @@ export class PostsService {
       );
 
       const canDeleteOwn =
-        post.author.id === userId &&
+        post.author.id === user.id &&
         userPermissions.includes('delete_post_own');
       const canDeleteAny = userPermissions.includes('delete_post_any');
 
