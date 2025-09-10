@@ -8,6 +8,8 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -85,6 +87,101 @@ export class PostsController {
     @Request() req: AuthenticatedRequest,
   ): Promise<ListPostsResponseDto> {
     return this.postsService.listPosts(dto, req.user.id);
+  }
+
+  @Get('my-posts')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(PERMISSIONS.VIEW_POSTS)
+  @ApiOperation({
+    summary: "List authenticated user's posts",
+    description:
+      'Get a paginated list of posts authored by the authenticated user only. Includes both public and private posts owned by the user, ordered by creation date (newest first). Includes search functionality.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "User's posts retrieved successfully",
+    type: ListPostsResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required',
+    schema: {
+      example: {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Unauthorized',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (starts from 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of items per page (max 100)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search term to filter posts by title or content',
+    example: 'javascript',
+  })
+  async listMyPosts(
+    @Query() dto: ListPostsDto,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<ListPostsResponseDto> {
+    return this.postsService.listUserPosts(dto, req.user.id, req.user.id);
+  }
+
+  @Get('user/:userId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(PERMISSIONS.VIEW_POSTS)
+  @ApiOperation({
+    summary: 'List posts by specific user',
+    description:
+      'Get a paginated list of posts authored by a specific user. Shows only public posts unless the requesting user is viewing their own posts (in which case private posts are also included). Ordered by creation date (newest first). Includes search functionality.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User posts retrieved successfully',
+    type: ListPostsResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required',
+    schema: {
+      example: {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Unauthorized',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (starts from 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of items per page (max 100)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search term to filter posts by title or content',
+    example: 'javascript',
+  })
+  async listUserPosts(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query() dto: ListPostsDto,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<ListPostsResponseDto> {
+    return this.postsService.listUserPosts(dto, userId, req.user.id);
   }
 
   @Post()
