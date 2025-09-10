@@ -85,6 +85,49 @@ export class PostsService {
     }
   }
 
+  async deletePost(postId: number, userId: number, user: User): Promise<void> {
+    try {
+      // First, find the post and verify it exists
+      const post = await this.postsRepository.findOne({
+        where: { id: postId },
+        relations: ['author'],
+      });
+
+      if (!post) {
+        throw new NotFoundException(`Post with ID ${postId} not found`);
+      }
+
+      // Check permissions:
+      // 1. User can delete their own post if they have DELETE_POST_OWN permission
+      // 2. Admin can delete any post if they have DELETE_POST_ANY permission
+
+      const userPermissions = user.roles.flatMap(
+        (role) => role.permissions?.map((permission) => permission.name) || [],
+      );
+
+      const canDeleteOwn =
+        post.author.id === userId &&
+        userPermissions.includes('delete_post_own');
+      const canDeleteAny = userPermissions.includes('delete_post_any');
+
+      if (!canDeleteOwn && !canDeleteAny) {
+        throw new ForbiddenException(
+          'You do not have permission to delete this post',
+        );
+      }
+
+      await this.postsRepository.remove(post);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      handleDatabaseError(error, 'delete post');
+    }
+  }
+
   async listPosts(
     dto: ListPostsDto,
     userId?: number,
