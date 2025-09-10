@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Query,
   UseGuards,
@@ -25,7 +26,9 @@ import {
 } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { CreatePostResponseDto } from './dto/create-post-response.dto';
+import { UpdatePostResponseDto } from './dto/update-post-response.dto';
 import { ListPostsDto } from './dto/list-posts.dto';
 import { ListPostsResponseDto } from './dto/list-posts-response.dto';
 import { AuthGuard } from '../auth/auth.guard';
@@ -182,6 +185,69 @@ export class PostsController {
     @Request() req: AuthenticatedRequest,
   ): Promise<ListPostsResponseDto> {
     return this.postsService.listUserPosts(dto, userId, req.user.id);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(PERMISSIONS.EDIT_POST_OWN)
+  @ApiOperation({
+    summary: 'Update a post',
+    description:
+      'Update an existing post. Users can only update their own posts. All fields are optional - only provided fields will be updated.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Post updated successfully',
+    type: UpdatePostResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required',
+    schema: {
+      example: {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Unauthorized',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description:
+      "Insufficient permissions or trying to edit another user's post",
+    schema: {
+      example: {
+        statusCode: HttpStatus.FORBIDDEN,
+        message: 'You can only edit your own posts',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Validation failed',
+    schema: {
+      example: {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: [
+          'Title must not exceed 255 characters',
+          'Visibility must be either PUBLIC or PRIVATE',
+        ],
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Post not found',
+    schema: {
+      example: {
+        statusCode: HttpStatus.NOT_FOUND,
+        message: 'Post with ID 123 not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  async updatePost(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePostDto,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UpdatePostResponseDto> {
+    return this.postsService.updatePost(id, dto, req.user.id);
   }
 
   @Post()
