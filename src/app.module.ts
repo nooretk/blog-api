@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { RbacModule } from './rbac/rbac.module';
 import { PostsModule } from './posts/posts.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   controllers: [AppController],
@@ -32,6 +33,7 @@ import { PostsModule } from './posts/posts.module';
     AuthModule,
     RbacModule,
     PostsModule,
+    CommentsModule,
   ],
 })
 export class AppModule {}
