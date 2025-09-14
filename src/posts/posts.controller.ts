@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Query,
   UseGuards,
@@ -248,6 +249,54 @@ export class PostsController {
     @Request() req: AuthenticatedRequest,
   ): Promise<UpdatePostResponseDto> {
     return this.postsService.updatePost(id, dto, req.user.id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(PERMISSIONS.DELETE_POST_OWN, PERMISSIONS.DELETE_POST_ANY)
+  @ApiOperation({
+    summary: 'Delete a post',
+    description:
+      'Delete a post. Users can delete their own posts with DELETE_POST_OWN permission. Admins can delete any post with DELETE_POST_ANY permission.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'Post deleted successfully',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Authentication required',
+    schema: {
+      example: {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Unauthorized',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description:
+      "Insufficient permissions or trying to delete another user's post",
+    schema: {
+      example: {
+        statusCode: HttpStatus.FORBIDDEN,
+        message: 'You do not have permission to delete this post',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Post not found',
+    schema: {
+      example: {
+        statusCode: HttpStatus.NOT_FOUND,
+        message: 'Post with ID 123 not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  async deletePost(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.postsService.deletePost(id, req.user);
   }
 
   @Post()
