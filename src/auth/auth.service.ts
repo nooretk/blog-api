@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, In } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -125,9 +125,6 @@ export class AuthService {
         expiresAt.setDate(expiresAt.getDate() + 7);
       }
 
-      // Limit concurrent refresh tokens per user
-      await this.limitConcurrentTokens(user.id);
-
       // Save refresh token to database
       const refreshTokenEntity = this.refreshTokenRepository.create({
         token: refreshTokenValue,
@@ -174,49 +171,6 @@ export class AuthService {
         return value;
       default:
         return 900; // Default 15 minutes
-    }
-  }
-
-  // Cleanup expired tokens (can be called by a cron job)
-  async cleanupExpiredTokens(): Promise<number> {
-    try {
-      const result = await this.refreshTokenRepository.delete({
-        expiresAt: MoreThan(new Date()),
-      });
-      return result.affected || 0;
-    } catch (error) {
-      handleDatabaseError(error, 'cleanup expired tokens');
-      return 0;
-    }
-  }
-
-  // Limit concurrent refresh tokens per user
-  private async limitConcurrentTokens(userId: number): Promise<void> {
-    try {
-      const maxTokens = this.configService.get<number>(
-        'MAX_REFRESH_TOKENS_PER_USER',
-        5,
-      );
-
-      const tokenCount = await this.refreshTokenRepository.count({
-        where: { user: { id: userId }, isRevoked: false },
-      });
-
-      if (tokenCount >= maxTokens) {
-        // Remove oldest tokens
-        const oldestTokens = await this.refreshTokenRepository.find({
-          where: { user: { id: userId }, isRevoked: false },
-          order: { createdAt: 'ASC' },
-          take: tokenCount - maxTokens + 1,
-        });
-
-        await this.refreshTokenRepository.update(
-          { id: In(oldestTokens.map((t) => t.id)) },
-          { isRevoked: true },
-        );
-      }
-    } catch {
-      // Silent error handling for simplicity
     }
   }
 }
