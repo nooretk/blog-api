@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PostVisibility } from 'src/posts/enums/post-visibility.enum';
 
-export class PostResponseDto {
+export class CreatePostResponseDto {
   @ApiProperty({
     example: 1,
     description: 'Unique post identifier',

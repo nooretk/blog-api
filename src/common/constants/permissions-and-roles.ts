@@ -10,6 +10,7 @@ export const PERMISSIONS = {
   ASSIGN_ROLE: 'assign_role',
   UPDATE_PROFILE_OWN: 'update_profile_own',
   VIEW_USERS: 'view_users',
+  VIEW_POSTS: 'view_posts',
 };
 
 export const ROLES = {
