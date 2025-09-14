@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Post } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
+import { UpdatePostResponseDto } from './dto/update-post-response.dto';
 import { ListPostsDto } from './dto/list-posts.dto';
 import {
   PostListItemDto,
@@ -11,6 +17,7 @@ import {
 } from './dto/list-posts-response.dto';
 import { PostVisibility } from './enums/post-visibility.enum';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
+import { mapPostToUpdateDto } from './mappers/post.mapper';
 
 @Injectable()
 export class PostsService {
@@ -34,9 +41,98 @@ export class PostsService {
     }
   }
 
+  async updatePost(
+    postId: number,
+    dto: UpdatePostDto,
+    userId: number,
+  ): Promise<UpdatePostResponseDto> {
+    try {
+      // First, find the post and verify ownership
+      const post = await this.postsRepository.findOne({
+        where: { id: postId },
+        relations: ['author'],
+      });
+
+      if (!post) {
+        throw new NotFoundException(`Post with ID ${postId} not found`);
+      }
+
+      // Check if the user owns the post
+      if (post.author.id !== userId) {
+        throw new ForbiddenException('You can only edit your own posts');
+      }
+
+      // Update only the provided fields
+      if (dto.title !== undefined) {
+        post.title = dto.title;
+      }
+      if (dto.content !== undefined) {
+        post.content = dto.content;
+      }
+      if (dto.visibility !== undefined) {
+        post.visibility = dto.visibility;
+      }
+      const updatedPost = await this.postsRepository.save(post);
+      return mapPostToUpdateDto(updatedPost);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      handleDatabaseError(error, 'update post');
+    }
+  }
+
   async listPosts(
     dto: ListPostsDto,
     userId?: number,
+  ): Promise<ListPostsResponseDto> {
+    return this.getPostsWithFilters(
+      dto,
+      (queryBuilder) => {
+        // Show public posts + user's own private posts
+        queryBuilder.where(
+          '(post.visibility = :publicVisibility OR (post.visibility = :privateVisibility AND post.author.id = :userId))',
+          {
+            publicVisibility: PostVisibility.PUBLIC,
+            privateVisibility: PostVisibility.PRIVATE,
+            userId,
+          },
+        );
+      },
+      'list posts',
+    );
+  }
+
+  async listUserPosts(
+    dto: ListPostsDto,
+    targetUserId: number,
+    requestingUserId?: number,
+  ): Promise<ListPostsResponseDto> {
+    return this.getPostsWithFilters(
+      dto,
+      (queryBuilder) => {
+        // Show posts authored by the target user
+        queryBuilder.where('post.author.id = :targetUserId', { targetUserId });
+
+        // If requesting user is different from target user, only show public posts
+        // If requesting user is the same as target user, show all posts (public + private)
+        if (requestingUserId !== targetUserId) {
+          queryBuilder.andWhere('post.visibility = :publicVisibility', {
+            publicVisibility: PostVisibility.PUBLIC,
+          });
+        }
+      },
+      'list user posts',
+    );
+  }
+
+  private async getPostsWithFilters(
+    dto: ListPostsDto,
+    whereClause: (queryBuilder: SelectQueryBuilder<Post>) => void,
+    operation: string,
   ): Promise<ListPostsResponseDto> {
     try {
       const { page = 1, limit = 10, search } = dto;
@@ -46,17 +142,10 @@ export class PostsService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author');
 
-      // show public posts + user's own private posts
+      // Apply the specific where clause
+      whereClause(queryBuilder);
 
-      queryBuilder.where(
-        '(post.visibility = :publicVisibility OR (post.visibility = :privateVisibility AND post.author.id = :userId))',
-        {
-          publicVisibility: PostVisibility.PUBLIC,
-          privateVisibility: PostVisibility.PRIVATE,
-          userId,
-        },
-      );
-
+      // Apply search filter if provided
       if (search) {
         queryBuilder.andWhere(
           '(post.title ILIKE :search OR post.content ILIKE :search)',
@@ -104,7 +193,7 @@ export class PostsService {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      handleDatabaseError(error, 'list posts');
+      handleDatabaseError(error, operation);
     }
   }
 
