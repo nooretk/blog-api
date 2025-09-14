@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { AdminService } from './rbac.service';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { RequirePermissions } from './decorators/require-permissions.decorator';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -19,14 +18,15 @@ import {
   ApiBearerAuth,
   ApiSecurity,
 } from '@nestjs/swagger';
+import { RbacService } from './rbac.service';
 
-@ApiTags('Admin Role Management')
+@ApiTags('RBAC Role Management')
 @ApiSecurity('JWT-auth')
 @ApiBearerAuth('JWT-auth')
-@Controller('admin')
+@Controller('rbac')
 @UseGuards(AuthGuard, PermissionsGuard)
-export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+export class RbacController {
+  constructor(private readonly rbacService: RbacService) {}
 
   @Post('assign-role')
   @HttpCode(HttpStatus.OK)
@@ -104,7 +104,7 @@ export class AdminController {
     },
   })
   async assignRole(@Body() dto: AssignRoleDto) {
-    return await this.adminService.assignRole(dto.userId, dto.roleName);
+    return await this.rbacService.assignRole(dto.userId, dto.roleName);
   }
 
   @Post('revoke-role')
@@ -169,6 +169,6 @@ export class AdminController {
     },
   })
   async revokeRole(@Body() dto: AssignRoleDto) {
-    return await this.adminService.revokeRole(dto.userId, dto.roleName);
+    return await this.rbacService.revokeRole(dto.userId, dto.roleName);
   }
 }
