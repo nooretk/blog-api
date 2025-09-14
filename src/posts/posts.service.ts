@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Post } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
+import { UpdatePostResponseDto } from './dto/update-post-response.dto';
 import { ListPostsDto } from './dto/list-posts.dto';
 import {
   PostListItemDto,
@@ -11,6 +17,7 @@ import {
 } from './dto/list-posts-response.dto';
 import { PostVisibility } from './enums/post-visibility.enum';
 import { handleDatabaseError } from '../common/utils/handle-database-error';
+import { mapPostToUpdateDto } from './mappers/post.mapper';
 
 @Injectable()
 export class PostsService {
@@ -31,6 +38,50 @@ export class PostsService {
       return this.postsRepository.save(entity);
     } catch (error) {
       handleDatabaseError(error, 'create post');
+    }
+  }
+
+  async updatePost(
+    postId: number,
+    dto: UpdatePostDto,
+    userId: number,
+  ): Promise<UpdatePostResponseDto> {
+    try {
+      // First, find the post and verify ownership
+      const post = await this.postsRepository.findOne({
+        where: { id: postId },
+        relations: ['author'],
+      });
+
+      if (!post) {
+        throw new NotFoundException(`Post with ID ${postId} not found`);
+      }
+
+      // Check if the user owns the post
+      if (post.author.id !== userId) {
+        throw new ForbiddenException('You can only edit your own posts');
+      }
+
+      // Update only the provided fields
+      if (dto.title !== undefined) {
+        post.title = dto.title;
+      }
+      if (dto.content !== undefined) {
+        post.content = dto.content;
+      }
+      if (dto.visibility !== undefined) {
+        post.visibility = dto.visibility;
+      }
+      const updatedPost = await this.postsRepository.save(post);
+      return mapPostToUpdateDto(updatedPost);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      handleDatabaseError(error, 'update post');
     }
   }
 
