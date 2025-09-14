@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Post } from './entities/post.entity';
@@ -47,19 +43,21 @@ export class PostsService {
     userId: number,
   ): Promise<UpdatePostResponseDto> {
     try {
-      // First, find the post and verify ownership
+      // First, find the post and verify ownership and accessibility
       const post = await this.postsRepository.findOne({
         where: { id: postId },
         relations: ['author'],
       });
 
+      // Security: Return consistent error to prevent information disclosure
+      // Don't reveal if post exists but user can't edit it vs doesn't exist at all
       if (!post) {
         throw new NotFoundException(`Post with ID ${postId} not found`);
       }
 
       // Check if the user owns the post
       if (post.author.id !== userId) {
-        throw new ForbiddenException('You can only edit your own posts');
+        throw new NotFoundException(`Post with ID ${postId} not found`);
       }
 
       // Update only the provided fields
@@ -75,10 +73,7 @@ export class PostsService {
       const updatedPost = await this.postsRepository.save(post);
       return mapPostToUpdateDto(updatedPost);
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof ForbiddenException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
       handleDatabaseError(error, 'update post');
@@ -93,10 +88,6 @@ export class PostsService {
         relations: ['author'],
       });
 
-      if (!post) {
-        throw new NotFoundException(`Post with ID ${postId} not found`);
-      }
-
       // Check permissions:
       // 1. User can delete their own post if they have DELETE_POST_OWN permission
       // 2. Admin can delete any post if they have DELETE_POST_ANY permission
@@ -106,22 +97,21 @@ export class PostsService {
       );
 
       const canDeleteOwn =
+        post &&
         post.author.id === user.id &&
         userPermissions.includes('delete_post_own');
       const canDeleteAny = userPermissions.includes('delete_post_any');
 
-      if (!canDeleteOwn && !canDeleteAny) {
-        throw new ForbiddenException(
-          'You do not have permission to delete this post',
-        );
+      // Security: Return consistent error to prevent information disclosure
+      // For regular users: Don't reveal if post exists but they can't access it vs doesn't exist
+      // For admins: Allow access to any post that exists
+      if (!post || (!canDeleteOwn && !canDeleteAny)) {
+        throw new NotFoundException(`Post with ID ${postId} not found`);
       }
 
       await this.postsRepository.remove(post);
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof ForbiddenException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
       handleDatabaseError(error, 'delete post');

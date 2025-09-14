@@ -210,16 +210,6 @@ export class PostsController {
       },
     },
   })
-  @ApiForbiddenResponse({
-    description:
-      "Insufficient permissions or trying to edit another user's post",
-    schema: {
-      example: {
-        statusCode: HttpStatus.FORBIDDEN,
-        message: 'You can only edit your own posts',
-      },
-    },
-  })
   @ApiBadRequestResponse({
     description: 'Validation failed',
     schema: {
@@ -234,7 +224,7 @@ export class PostsController {
     },
   })
   @ApiNotFoundResponse({
-    description: 'Post not found',
+    description: 'Post not found or not accessible',
     schema: {
       example: {
         statusCode: HttpStatus.NOT_FOUND,
@@ -273,17 +263,16 @@ export class PostsController {
     },
   })
   @ApiForbiddenResponse({
-    description:
-      "Insufficient permissions or trying to delete another user's post",
+    description: 'Insufficient permissions (delete post permission required)',
     schema: {
       example: {
         statusCode: HttpStatus.FORBIDDEN,
-        message: 'You do not have permission to delete this post',
+        message: 'Forbidden resource',
       },
     },
   })
   @ApiNotFoundResponse({
-    description: 'Post not found',
+    description: 'Post not found or not accessible',
     schema: {
       example: {
         statusCode: HttpStatus.NOT_FOUND,

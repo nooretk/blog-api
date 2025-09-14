@@ -18,6 +18,8 @@ import {
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { TokenResponseDto } from './dto/token-response.dto';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request';
 import { SignInDto } from './dto/signin.dto';
 import { plainToInstance } from 'class-transformer';
@@ -87,11 +89,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Login successful',
-    schema: {
-      example: {
-        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      },
-    },
+    type: TokenResponseDto,
   })
   @ApiResponse({
     status: 401,
@@ -113,8 +111,36 @@ export class AuthController {
   })
   @ApiBody({ type: SignInDto })
   @HttpCode(HttpStatus.OK)
-  signIn(@Body() signInDto: SignInDto) {
+  signIn(@Body() signInDto: SignInDto): Promise<TokenResponseDto> {
     return this.authService.signIn(signInDto);
+  }
+
+  @Post('refresh')
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tokens refreshed successfully',
+    type: TokenResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
+  @ApiBody({ type: RefreshTokenDto })
+  @HttpCode(HttpStatus.OK)
+  refreshTokens(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<TokenResponseDto> {
+    return this.authService.refreshTokens(refreshTokenDto);
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout user and revoke refresh token' })
+  @ApiResponse({ status: 200, description: 'User logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() refreshTokenDto: RefreshTokenDto): Promise<void> {
+    await this.authService.revokeRefreshToken(refreshTokenDto);
   }
 
   @ApiOperation({
